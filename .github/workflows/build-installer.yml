@@ -1,0 +1,55 @@
+name: Build installer
+
+on:
+  workflow_dispatch:        # lets you start it with a button on the Actions tab
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write           # lets the last step publish the installer as a release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build SpaceTrack and SpaceMaster
+        run: |
+          cmake -S SpaceTrack -B SpaceTrack/build -A x64
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmake --build SpaceTrack/build --config Release
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Build MotionShaper
+        run: |
+          cmake -S MotionShaper -B MotionShaper/build -A x64
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmake --build MotionShaper/build --config Release
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build the installer
+        run: |
+          $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe", "$env:ProgramFiles\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $iscc) { Write-Error 'ISCC.exe not found'; exit 1 }
+          & $iscc "/DSpaceBuildDir=$env:GITHUB_WORKSPACE\SpaceTrack\build" "/DMotionBuildDir=$env:GITHUB_WORKSPACE\MotionShaper\build" "/O$env:GITHUB_WORKSPACE\Installers" Installer\PluginSuite.iss
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Upload the installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: PluginSuite-Setup
+          path: Installers/PluginSuite-Setup.exe
+          if-no-files-found: error
+
+      # Artifacts expire after 90 days. This keeps the newest installer on the Releases page for good.
+      - name: Publish the installer on the Releases page
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag
+          gh release create latest Installers/PluginSuite-Setup.exe --target $env:GITHUB_SHA --title "Latest installer" --notes "Built automatically from commit $env:GITHUB_SHA. Close FL Studio before installing."
+          exit $LASTEXITCODE

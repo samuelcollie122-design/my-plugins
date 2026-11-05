@@ -1,0 +1,14 @@
+BUILD THE INSTALLER ON GITHUB (no Visual Studio needed on your PC)
+
+1. Make a free account at github.com and create a NEW EMPTY repository (choose Private).
+2. In a terminal inside the PluginSuite folder:
+      git init -b main
+      git add .
+      git commit -m "plugins"
+      git remote add origin https://github.com/YOUR-NAME/YOUR-REPO.git
+      git push -u origin main
+   (a browser window opens the first time to sign in)
+3. On the repository page open the Actions tab. The build starts by itself.
+   It takes about 10-20 minutes. You can also start it with Run workflow.
+4. When it shows a green tick, open the Releases page of the repository and download PluginSuite-Setup.exe from "Latest installer".
+   It stays there until a newer build replaces it. Every push to main rebuilds it.

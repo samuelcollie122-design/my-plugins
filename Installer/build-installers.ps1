@@ -1,4 +1,4 @@
-# Builds SpaceTrack + SpaceMaster and MotionShaper, then packages all three into ONE setup .exe
+# Builds SpaceTrack + SpaceMaster, MotionShaper and OptoComp, then packages all four into ONE setup .exe
 $ErrorActionPreference = 'Stop'
 
 $installerDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -78,8 +78,12 @@ try {
     $motionBuild = Build-Project (Join-Path $suiteDir 'MotionShaper')
     Require-Bundle $motionBuild 'MotionShaper'
 
+    Step 'Building OptoComp'
+    $optoBuild = Build-Project (Join-Path $suiteDir 'OptoComp')
+    Require-Bundle $optoBuild 'OptoComp'
+
     Step 'Packaging the installer'
-    & $script:iscc "/DSpaceBuildDir=$spaceBuild" "/DMotionBuildDir=$motionBuild" "/O$outDir" (Join-Path $installerDir 'PluginSuite.iss') | Out-Host
+    & $script:iscc "/DSpaceBuildDir=$spaceBuild" "/DMotionBuildDir=$motionBuild" "/DOptoBuildDir=$optoBuild" "/O$outDir" (Join-Path $installerDir 'PluginSuite.iss') | Out-Host
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup failed to build the installer' }
 
     Step 'Done'

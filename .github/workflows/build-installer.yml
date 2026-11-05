@@ -28,6 +28,13 @@ jobs:
           cmake --build MotionShaper/build --config Release
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+      - name: Build OptoComp
+        run: |
+          cmake -S OptoComp -B OptoComp/build -A x64
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmake --build OptoComp/build --config Release
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
 
@@ -35,7 +42,7 @@ jobs:
         run: |
           $iscc = Get-ChildItem "${env:ProgramFiles(x86)}\Inno Setup *\ISCC.exe", "$env:ProgramFiles\Inno Setup *\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
           if (-not $iscc) { Write-Error 'ISCC.exe not found'; exit 1 }
-          & $iscc "/DSpaceBuildDir=$env:GITHUB_WORKSPACE\SpaceTrack\build" "/DMotionBuildDir=$env:GITHUB_WORKSPACE\MotionShaper\build" "/O$env:GITHUB_WORKSPACE\Installers" Installer\PluginSuite.iss
+          & $iscc "/DSpaceBuildDir=$env:GITHUB_WORKSPACE\SpaceTrack\build" "/DMotionBuildDir=$env:GITHUB_WORKSPACE\MotionShaper\build" "/DOptoBuildDir=$env:GITHUB_WORKSPACE\OptoComp\build" "/O$env:GITHUB_WORKSPACE\Installers" Installer\PluginSuite.iss
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Upload the installer

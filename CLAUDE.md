@@ -14,6 +14,7 @@ Claude Code has since built all three plugins, but much of this is still unteste
 ## Layout
 - `SpaceTrack/`   builds TWO plugins: SpaceTrack (per track) and SpaceMaster (control surface, passes audio through).
 - `MotionShaper/` builds one plugin: a tempo-synced step sequencer with a drawable envelope per step.
+- `OptoComp/`     builds one plugin: an optical compressor in the classic two-knob style.
 - `Installer/`    Inno Setup script + PowerShell/batch script that builds everything into one `PluginSuite-Setup.exe`.
 - `.github/workflows/build-installer.yml`  builds the same installer on GitHub's Windows runner (no local Visual Studio needed).
 
@@ -29,7 +30,9 @@ Claude Code has since built all three plugins, but much of this is still unteste
   Not exercised by Claude: mouse actions, menus, the native save dialog, how the new effects sound, FL's sidechain routing.
 - The 2026-11-04 SpaceTrack and SpaceMaster builds produced `moduleinfo.json`. No build was copied to the VST3 folder; SpaceTrack and SpaceMaster UI and audio from those builds are unverified.
 - SpaceTrack HRTF and shared room (2026-11-05): `SpaceTrackDspTest` passes at 44.1, 48 and 96 kHz, but NOBODY HAS HEARD IT. Whether height and front/back now sound convincing is unknown.
-- All three plugins link the Visual C++ runtime statically (checked with dumpbin on 2026-11-05), so a new PC needs no Redistributable.
+- OptoComp (2026-11-05): `OptoCompTest` passes (curve, two-stage release, every control, the 12 presets, save/load, A/B). Window pictures were compared by eye with the user's reference screenshot.
+  NEVER opened or heard in FL Studio. Clicks, menus, the save dialog and undo buttons have not been exercised. The local build folder was configured with `-DOPTOCOMP_TESTS=ON`.
+- SpaceTrack, SpaceMaster and MotionShaper link the Visual C++ runtime statically (checked with dumpbin on 2026-11-05), so a new PC needs no Redistributable. OptoComp uses the same setting.
 - Code lives in the private repo https://github.com/samuelcollie122-design/my-plugins (branch main). Every push to main runs the workflow, which publishes `PluginSuite-Setup.exe` to the Releases page under the tag `latest`.
 - `Installer/build-installers.bat` has never been run. See the repo's Actions tab for the state of the GitHub workflow.
 - No test has been done inside FL Studio for any of it beyond what the user reported.
@@ -89,16 +92,24 @@ Claude Code has since built all three plugins, but much of this is still unteste
 - Test: configure with `-DMOTIONSHAPER_TESTS=ON`, build target `MotionShaperTest`, run it with a folder for window pictures. Use a short build path (Windows 260 character limit).
 - Ideas the user may want next: per-layer phase offset, MIDI retrigger mode, resizable window.
 
+## OptoComp: how it works
+- Modelled on the behaviour of classic optical compressors. The look follows a screenshot the user supplied of a commercial plugin, for personal use, with its own name and emblem. Do not add other companies' names or logos.
+- `Source/OptoCore.h` (pure C++): `LightCell` has a 10 ms attack and a two-stage release, a fast part (70 ms) and a slow part that charges over about 1.2 s and releases over about 2.5 s, so long loud passages recover slower than short hits.
+  `Compressor` detects from its own output (feedback), stereo linked. Gain is 1/(1+e^3) for compress, about 2.5:1 at normal levels, and 1/(1+e^5) for limit, about 4:1.
+- Parameters: `peak` 0..1, `gain` 0..100 (40 = no change, 0.5 dB per step), `limit`, `hifreq` (detector hears more highs), `analog` (Off, 50Hz, 60Hz: tube-style harmonics plus quiet hum and hiss, which sound even with no input), `automakeup`, `trim` +-18 dB, `mix`.
+- Presets: the 12 names the user asked for, with settings of my own (not copied from any product), in `kPresets` in `PluginProcessor.cpp`. User presets are `.optopreset` XML files in `%APPDATA%\OptoComp\Presets`.
+- UI (`PluginEditor.*`): fixed 990x405. A/B swaps two setups (`toggleSetup`, `copyCurrentSetupToOther`). The meter switch (Input, GR, Output) is the `meterMode` property. The VU scale is amplitude spaced, as on a real meter.
+
 ## Installer
 - `Installer/build-installers.bat` -> `build-installers.ps1`: finds CMake (also via vswhere), builds both projects, installs Inno Setup
   through winget if missing, runs `Installer/PluginSuite.iss`. Output: `Installers/PluginSuite-Setup.exe` with a component choice
-  (SpaceTrack + SpaceMaster, MotionShaper), installs into `{commoncf64}\VST3`.
+  (SpaceTrack + SpaceMaster, MotionShaper, OptoComp), installs into `{commoncf64}\VST3`.
 - The GitHub Actions runner has no "Visual Studio 18 2026", so the workflow lets CMake pick the default generator.
 - The .exe is unsigned, so Windows may show a SmartScreen warning on a new PC. The user plans personal use only; sharing or selling would need a look at JUCE's licence terms.
 
 ## Suggested next steps
 1. Ask the user to install the latest build and judge SpaceTrack's new 3D sound and MotionShaper's new effects by ear in FL Studio.
-2. Confirm the installer from GitHub puts three .vst3 folders in the VST3 directory.
+2. Confirm the installer from GitHub puts four .vst3 folders in the VST3 directory.
 
 ## Conventions
 - Keep files that are used by Windows scripts (.bat, .ps1, .iss) with CRLF line endings.
